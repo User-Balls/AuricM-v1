@@ -8,36 +8,25 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_HOME: $HOME/.buildozer/android/platform/android-sdk
-      ANDROID_SDK_ROOT: $HOME/.buildozer/android/platform/android-sdk
-      PATH: $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin:$PATH:$HOME/.local/bin:$PATH
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
 
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
     - name: Install system dependencies
       run: |
-        sudo apt update
-        sudo apt install -y python3-pip python3-setuptools git zip unzip openjdk-17-jdk wget
+        sudo apt-get update
+        sudo apt-get install -y python3-pip python3-setuptools git zip unzip openjdk-17-jdk wget libffi-dev libssl-dev tar
 
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install cython buildozer kivy kivymd mutagen yt_dlp pygame requests pillow
-
-    - name: Install Android command-line tools
-      run: |
-        SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
-        mkdir -p "$SDK_ROOT/cmdline-tools"
-        cd "$SDK_ROOT/cmdline-tools"
-        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-        unzip -q cmdline-tools.zip
-        mv cmdline-tools latest
-        chmod +x latest/bin/sdkmanager
-        export PATH="$SDK_ROOT/cmdline-tools/latest/bin:$PATH"
-        sdkmanager --sdk_root="$SDK_ROOT" "platform-tools" "platforms;android-33" --licenses || true
+        pip install cython buildozer==1.5.0
 
     - name: Cache Buildozer SDK/NDK (optional, speeds up next run)
       uses: actions/cache@v3
@@ -45,22 +34,8 @@ jobs:
         path: ~/.buildozer/android/platform
         key: buildozer-android-${{ runner.os }}-v3
 
-    - name: Configure buildozer.spec
-      run: |
-        sed -i 's/^title = .*/title = AuricM v1/' buildozer.spec || true
-        sed -i 's/^package.name = .*/package.name = com.userballs.auricmv1/' buildozer.spec || true
-        sed -i 's/^requirements = .*/requirements = python3,kivy,kivymd,mutagen,yt_dlp,requests,pygame,pillow/' buildozer.spec || true
-        sed -i 's/^orientation = .*/orientation = portrait/' buildozer.spec || true
-        sed -i 's/^entrypoint = .*/entrypoint = newv2.py/' buildozer.spec || true
-        sed -i 's/^source.dir = .*/source.dir = ./' buildozer.spec || true
-        echo "buildozer.spec configured - preview:"
-        grep -E '^(title|package.name|requirements|entrypoint|source.dir|orientation)' buildozer.spec || true
-
     - name: Build APK
       run: |
-        export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
-        export ANDROID_HOME=$ANDROID_SDK_ROOT
-        export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
         buildozer android debug
 
     - name: Upload APK artifact
