@@ -26,7 +26,7 @@ jobs:
         pip install --upgrade pip
         pip install cython buildozer kivy kivymd mutagen yt_dlp pygame requests pillow
 
-    # Step 4: Install Android command-line tools (fix sdkmanager missing)
+    # Step 4: Install Android command-line tools (fix sdkmanager)
     - name: Install Android command-line tools
       run: |
         mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
