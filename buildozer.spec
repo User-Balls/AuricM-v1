@@ -15,8 +15,8 @@ source.dir = .
 # File extensions to include from source.dir
 source.include_exts = py,png,jpg,kv,json
 
-# Python dependencies
-requirements = python3,kivy,kivymd,mutagen,yt_dlp,requests,pygame,pillow
+# Python dependencies (add hostpython3, six, setuptools for modern Kivy/Buildozer builds)
+requirements = python3,kivy,kivymd,mutagen,yt_dlp,requests,pygame,pillow,six,setuptools,hostpython3
 
 # Entry point of the app
 entrypoint = newv2.py
@@ -28,7 +28,7 @@ orientation = portrait
 fullscreen = 1
 
 # Permissions
-android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
+android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE,FOREGROUND_SERVICE
 
 # Android minimum API
 android.minapi = 21
