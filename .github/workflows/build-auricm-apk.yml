@@ -9,8 +9,8 @@ jobs:
   build-apk:
     runs-on: ubuntu-latest
     env:
-      # help tools find the SDK if they rely on ANDROID_HOME
-      ANDROID_HOME: ${{ runner.home }}/.buildozer/android/platform/android-sdk
+      # Correct way to reference home directory
+      ANDROID_HOME: $HOME/.buildozer/android/platform/android-sdk
 
     steps:
     - name: Checkout repository
@@ -53,7 +53,6 @@ jobs:
           cd "$SDK_ROOT/cmdline-tools"
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
           unzip -q cmdline-tools.zip
-          # some zips extract into 'cmdline-tools' directory
           if [ -d "cmdline-tools" ] && [ ! -d "latest" ]; then
             mv cmdline-tools latest
           fi
@@ -61,7 +60,6 @@ jobs:
           echo "Android command-line tools already present."
         fi
 
-        # Create tools/bin and copy sdkmanager there so Buildozer (old expectation) finds it
         if [ ! -x "$SDK_ROOT/tools/bin/sdkmanager" ]; then
           echo "Creating tools/bin and copying sdkmanager..."
           mkdir -p "$SDK_ROOT/tools/bin"
@@ -69,7 +67,6 @@ jobs:
           chmod +x "$SDK_ROOT/tools/bin/sdkmanager" || true
         fi
 
-        # sanity check
         if [ -x "$SDK_ROOT/tools/bin/sdkmanager" ]; then
           echo "sdkmanager ready at $SDK_ROOT/tools/bin/sdkmanager"
           "$SDK_ROOT/tools/bin/sdkmanager" --version || true
@@ -89,7 +86,6 @@ jobs:
     # Ensure buildozer.spec has the correct settings for AuricM v1 / newv2.py
     - name: Configure Buildozer spec
       run: |
-        # Only replace lines if they exist; sed will silently skip if not found
         sed -i 's/^title = .*/title = AuricM v1/' buildozer.spec || true
         sed -i 's/^package.name = .*/package.name = com.userballs.auricmv1/' buildozer.spec || true
         sed -i 's/^requirements = .*/requirements = python3,kivy,kivymd,mutagen,yt_dlp,requests,pygame,pillow/' buildozer.spec || true
