@@ -1,81 +1,61 @@
 [app]
 
-# (str) Title of your application
+# App title
 title = AuricM v1
 
-# (str) Package name (must be lowercase, no spaces)
+# Package name (all lowercase, no spaces)
 package.name = com.userballs.auricmv1
 
-# (str) Package domain (used to generate package name)
+# Package domain (used for generating package ID)
 package.domain = org.userballs
 
-# (str) Source code location
-source.include_exts = py,png,jpg,kv,atlas,json
+# Source code directory (root of the repo)
+source.dir = .
 
-# (list) Application requirements
+# File extensions to include from source.dir
+source.include_exts = py,png,jpg,kv,json
+
+# Python dependencies
 requirements = python3,kivy,kivymd,mutagen,yt_dlp,requests,pygame,pillow
 
-# (str) Application versioning
-version = 1.0.0
+# Entry point of the app
+entrypoint = newv2.py
 
-# (str) Entry point of the application
-entrypoint = workingdesktopappdownloader.py
-
-# (str) Orientation (portrait, landscape or all)
+# Orientation (portrait, landscape, or all)
 orientation = portrait
 
-# (bool) Fullscreen mode
+# Fullscreen mode
 fullscreen = 1
 
-# (list) Permissions
+# Permissions
 android.permissions = INTERNET,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
 
-# (int) Minimum API your app will support
+# Android minimum API
 android.minapi = 21
 
-# (int) Target API for build
+# Android target API
 android.api = 33
 
-# (str) Android SDK path (optional, will auto-download if not set)
-# android.sdk_path = /path/to/android/sdk
+# Android architectures
+android.archs = armeabi-v7a,arm64-v8a
 
-# (str) Android NDK path (optional, will auto-download if not set)
-# android.ndk_path = /path/to/android/ndk
+# Version
+version = 1.0.0
 
-# (str) Android entry point (default is org.kivy.android.PythonActivity)
-android.entrypoint = org.kivy.android.PythonActivity
-
-# (str) Supported orientation
-android.orientation = portrait
-
-# (bool) Allow the app to be debuggable
+# Debug mode (1=debug, 0=release)
 android.debug = 1
-
-# (list) Android architecture targets
-android.archs = armeabi-v7a, arm64-v8a
-
-# (bool) Enable splash screen
-#android.show_splash_screen = 1
-
-# (str) Icon (optional)
-#icon.filename = %(source.dir)s/icon.png
-
-# (str) Presplash image (optional)
-#presplash.filename = %(source.dir)s/presplash.png
 
 [buildozer]
 
-# (str) Path to build directory
+# Build and bin directories
 build_dir = .build
-
-# (str) Path to bin directory
 bin_dir = bin
 
-# (str) Log level (0=debug, 1=info, 2=warning)
+# Log level (0=debug, 1=info, 2=warning)
 log_level = 2
 
-# (int) Number of concurrent jobs for compilation
+# Number of concurrent jobs for compilation
 jobs = 4
 
-# (bool) Clean build every time
+# Clean build every time
 clean_build = 1
