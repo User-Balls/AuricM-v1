@@ -9,82 +9,43 @@ jobs:
   build-apk:
     runs-on: ubuntu-latest
     env:
-      # Correct way to reference home directory
       ANDROID_HOME: $HOME/.buildozer/android/platform/android-sdk
+      ANDROID_SDK_ROOT: $HOME/.buildozer/android/platform/android-sdk
+      PATH: $HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest/bin:$PATH:$HOME/.local/bin:$PATH
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # Cache pip wheel/cache to speed up pip installs
-    - name: Cache Python packages
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: python-pip-${{ hashFiles('**/requirements.txt') || 'auricm-v1' }}
-        restore-keys: |
-          python-pip-
-
     - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y python3-pip python3-setuptools git zip unzip wget openjdk-17-jdk
+        sudo apt install -y python3-pip python3-setuptools git zip unzip openjdk-17-jdk wget
 
     - name: Install Python dependencies
       run: |
         python -m pip install --upgrade pip
         pip install cython buildozer kivy kivymd mutagen yt_dlp pygame requests pillow
 
-    # Cache the entire Buildozer SDK/NDK directory; bumped key "v2" to avoid earlier broken cache
-    - name: Cache Buildozer SDK/NDK
+    - name: Install Android command-line tools
+      run: |
+        SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
+        mkdir -p "$SDK_ROOT/cmdline-tools"
+        cd "$SDK_ROOT/cmdline-tools"
+        wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+        unzip -q cmdline-tools.zip
+        mv cmdline-tools latest
+        chmod +x latest/bin/sdkmanager
+        export PATH="$SDK_ROOT/cmdline-tools/latest/bin:$PATH"
+        sdkmanager --sdk_root="$SDK_ROOT" "platform-tools" "platforms;android-33" --licenses || true
+
+    - name: Cache Buildozer SDK/NDK (optional, speeds up next run)
       uses: actions/cache@v3
       with:
         path: ~/.buildozer/android/platform
-        key: buildozer-android-${{ runner.os }}-v2
+        key: buildozer-android-${{ runner.os }}-v3
 
-    # Install official Android command-line tools (ensure sdkmanager present)
-    - name: Install Android command-line tools & provide tools/bin/sdkmanager
-      run: |
-        SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
-        CMDLINE_DIR="$SDK_ROOT/cmdline-tools/latest"
-        if [ ! -x "$CMDLINE_DIR/bin/sdkmanager" ]; then
-          echo "Downloading Android command-line tools..."
-          mkdir -p "$SDK_ROOT/cmdline-tools"
-          cd "$SDK_ROOT/cmdline-tools"
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip -q cmdline-tools.zip
-          if [ -d "cmdline-tools" ] && [ ! -d "latest" ]; then
-            mv cmdline-tools latest
-          fi
-        else
-          echo "Android command-line tools already present."
-        fi
-
-        if [ ! -x "$SDK_ROOT/tools/bin/sdkmanager" ]; then
-          echo "Creating tools/bin and copying sdkmanager..."
-          mkdir -p "$SDK_ROOT/tools/bin"
-          cp -v "$CMDLINE_DIR/bin/sdkmanager" "$SDK_ROOT/tools/bin/" || true
-          chmod +x "$SDK_ROOT/tools/bin/sdkmanager" || true
-        fi
-
-        if [ -x "$SDK_ROOT/tools/bin/sdkmanager" ]; then
-          echo "sdkmanager ready at $SDK_ROOT/tools/bin/sdkmanager"
-          "$SDK_ROOT/tools/bin/sdkmanager" --version || true
-        else
-          echo "ERROR: sdkmanager not found after installation!"
-          ls -la "$SDK_ROOT" || true
-          exit 1
-        fi
-
-    # Pre-accept licenses (non-interactive)
-    - name: Accept Android SDK licenses
-      run: |
-        mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
-        echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        echo "84831b9409646a918e30573bab4c9c91346d8abd" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
-
-    # Ensure buildozer.spec has the correct settings for AuricM v1 / newv2.py
-    - name: Configure Buildozer spec
+    - name: Configure buildozer.spec
       run: |
         sed -i 's/^title = .*/title = AuricM v1/' buildozer.spec || true
         sed -i 's/^package.name = .*/package.name = com.userballs.auricmv1/' buildozer.spec || true
@@ -95,8 +56,11 @@ jobs:
         echo "buildozer.spec configured - preview:"
         grep -E '^(title|package.name|requirements|entrypoint|source.dir|orientation)' buildozer.spec || true
 
-    - name: Build APK (this can take ~15-40+ minutes)
+    - name: Build APK
       run: |
+        export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
+        export ANDROID_HOME=$ANDROID_SDK_ROOT
+        export PATH=$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$PATH
         buildozer android debug
 
     - name: Upload APK artifact
