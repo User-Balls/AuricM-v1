@@ -18,7 +18,7 @@ jobs:
     - name: Install system dependencies
       run: |
         sudo apt update
-        sudo apt install -y python3-pip python3-setuptools git zip unzip openjdk-17-jdk
+        sudo apt install -y python3-pip python3-setuptools git zip unzip wget openjdk-17-jdk
 
     # Step 3: Install Python dependencies
     - name: Install Python dependencies
@@ -26,14 +26,23 @@ jobs:
         pip install --upgrade pip
         pip install cython buildozer kivy kivymd mutagen yt_dlp pygame requests pillow
 
-    # Step 4: Accept Android SDK licenses
+    # Step 4: Download Android command-line tools
+    - name: Install Android command-line tools
+      run: |
+        mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
+        cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
+        wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+        unzip cmdline-tools.zip
+        mv cmdline-tools latest
+
+    # Step 5: Accept Android SDK licenses
     - name: Accept Android SDK licenses
       run: |
         mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
         echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
         echo "84831b9409646a918e30573bab4c9c91346d8abd" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
 
-    # Step 5: Dynamically configure Buildozer
+    # Step 6: Configure Buildozer spec
     - name: Configure Buildozer
       run: |
         sed -i 's/^title = .*/title = AuricM v1/' buildozer.spec
@@ -43,12 +52,12 @@ jobs:
         sed -i 's/^entrypoint = .*/entrypoint = newv2.py/' buildozer.spec
         sed -i 's/^source.dir = .*/source.dir = ./' buildozer.spec
 
-    # Step 6: Build the APK
+    # Step 7: Build the APK
     - name: Build APK
       run: |
         buildozer android debug
 
-    # Step 7: Upload APK artifact
+    # Step 8: Upload APK artifact
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
