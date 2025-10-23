@@ -8,13 +8,15 @@ on:
 jobs:
   build-apk:
     runs-on: ubuntu-latest
+    env:
+      # help tools find the SDK if they rely on ANDROID_HOME
+      ANDROID_HOME: ${{ runner.home }}/.buildozer/android/platform/android-sdk
 
     steps:
-    # Step 1: Checkout repository
     - name: Checkout repository
       uses: actions/checkout@v3
 
-    # Step 2: Cache Python dependencies
+    # Cache pip wheel/cache to speed up pip installs
     - name: Cache Python packages
       uses: actions/cache@v3
       with:
@@ -23,61 +25,85 @@ jobs:
         restore-keys: |
           python-pip-
 
-    # Step 3: Install system dependencies
     - name: Install system dependencies
       run: |
         sudo apt update
         sudo apt install -y python3-pip python3-setuptools git zip unzip wget openjdk-17-jdk
 
-    # Step 4: Install Python dependencies
     - name: Install Python dependencies
       run: |
-        pip install --upgrade pip
+        python -m pip install --upgrade pip
         pip install cython buildozer kivy kivymd mutagen yt_dlp pygame requests pillow
 
-    # Step 5: Cache Buildozer Android SDK/NDK
+    # Cache the entire Buildozer SDK/NDK directory; bumped key "v2" to avoid earlier broken cache
     - name: Cache Buildozer SDK/NDK
       uses: actions/cache@v3
       with:
         path: ~/.buildozer/android/platform
-        key: buildozer-android-${{ runner.os }}-v1
+        key: buildozer-android-${{ runner.os }}-v2
 
-    # Step 6: Install Android command-line tools (if not cached)
-    - name: Install Android command-line tools
+    # Install official Android command-line tools (ensure sdkmanager present)
+    - name: Install Android command-line tools & provide tools/bin/sdkmanager
       run: |
-        CMDLINE_TOOLS=$HOME/.buildozer/android/platform/android-sdk/cmdline-tools/latest
-        if [ ! -d "$CMDLINE_TOOLS" ]; then
-          mkdir -p $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
-          cd $HOME/.buildozer/android/platform/android-sdk/cmdline-tools
-          wget https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
-          unzip cmdline-tools.zip
-          mv cmdline-tools latest
+        SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
+        CMDLINE_DIR="$SDK_ROOT/cmdline-tools/latest"
+        if [ ! -x "$CMDLINE_DIR/bin/sdkmanager" ]; then
+          echo "Downloading Android command-line tools..."
+          mkdir -p "$SDK_ROOT/cmdline-tools"
+          cd "$SDK_ROOT/cmdline-tools"
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -O cmdline-tools.zip
+          unzip -q cmdline-tools.zip
+          # some zips extract into 'cmdline-tools' directory
+          if [ -d "cmdline-tools" ] && [ ! -d "latest" ]; then
+            mv cmdline-tools latest
+          fi
+        else
+          echo "Android command-line tools already present."
         fi
 
-    # Step 7: Accept Android SDK licenses
+        # Create tools/bin and copy sdkmanager there so Buildozer (old expectation) finds it
+        if [ ! -x "$SDK_ROOT/tools/bin/sdkmanager" ]; then
+          echo "Creating tools/bin and copying sdkmanager..."
+          mkdir -p "$SDK_ROOT/tools/bin"
+          cp -v "$CMDLINE_DIR/bin/sdkmanager" "$SDK_ROOT/tools/bin/" || true
+          chmod +x "$SDK_ROOT/tools/bin/sdkmanager" || true
+        fi
+
+        # sanity check
+        if [ -x "$SDK_ROOT/tools/bin/sdkmanager" ]; then
+          echo "sdkmanager ready at $SDK_ROOT/tools/bin/sdkmanager"
+          "$SDK_ROOT/tools/bin/sdkmanager" --version || true
+        else
+          echo "ERROR: sdkmanager not found after installation!"
+          ls -la "$SDK_ROOT" || true
+          exit 1
+        fi
+
+    # Pre-accept licenses (non-interactive)
     - name: Accept Android SDK licenses
       run: |
-        mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
-        echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-        echo "84831b9409646a918e30573bab4c9c91346d8abd" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+        mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
+        echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo "84831b9409646a918e30573bab4c9c91346d8abd" > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
 
-    # Step 8: Configure Buildozer spec
-    - name: Configure Buildozer
+    # Ensure buildozer.spec has the correct settings for AuricM v1 / newv2.py
+    - name: Configure Buildozer spec
       run: |
-        sed -i 's/^title = .*/title = AuricM v1/' buildozer.spec
-        sed -i 's/^package.name = .*/package.name = com.userballs.auricmv1/' buildozer.spec
-        sed -i 's/^requirements = .*/requirements = python3,kivy,kivymd,mutagen,yt_dlp,requests,pygame,pillow/' buildozer.spec
-        sed -i 's/^orientation = .*/orientation = portrait/' buildozer.spec
-        sed -i 's/^entrypoint = .*/entrypoint = newv2.py/' buildozer.spec
-        sed -i 's/^source.dir = .*/source.dir = ./' buildozer.spec
+        # Only replace lines if they exist; sed will silently skip if not found
+        sed -i 's/^title = .*/title = AuricM v1/' buildozer.spec || true
+        sed -i 's/^package.name = .*/package.name = com.userballs.auricmv1/' buildozer.spec || true
+        sed -i 's/^requirements = .*/requirements = python3,kivy,kivymd,mutagen,yt_dlp,requests,pygame,pillow/' buildozer.spec || true
+        sed -i 's/^orientation = .*/orientation = portrait/' buildozer.spec || true
+        sed -i 's/^entrypoint = .*/entrypoint = newv2.py/' buildozer.spec || true
+        sed -i 's/^source.dir = .*/source.dir = ./' buildozer.spec || true
+        echo "buildozer.spec configured - preview:"
+        grep -E '^(title|package.name|requirements|entrypoint|source.dir|orientation)' buildozer.spec || true
 
-    # Step 9: Build the APK
-    - name: Build APK
+    - name: Build APK (this can take ~15-40+ minutes)
       run: |
         buildozer android debug
 
-    # Step 10: Upload APK artifact
-    - name: Upload APK
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
         name: AuricM-v1-APK
