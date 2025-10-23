@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Checkout your repository
+    # Step 1: Checkout repository
     - name: Checkout repository
       uses: actions/checkout@v3
 
@@ -26,24 +26,29 @@ jobs:
         pip install --upgrade pip
         pip install cython buildozer kivy kivymd mutagen yt_dlp pygame requests pillow
 
-    # Step 4: Dynamically configure Buildozer
+    # Step 4: Accept Android SDK licenses
+    - name: Accept Android SDK licenses
+      run: |
+        mkdir -p ~/.buildozer/android/platform/android-sdk/licenses
+        echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
+        echo "84831b9409646a918e30573bab4c9c91346d8abd" > ~/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
+
+    # Step 5: Dynamically configure Buildozer
     - name: Configure Buildozer
       run: |
-        # Set app title
         sed -i 's/^title = .*/title = AuricM v1/' buildozer.spec
-        # Set package name (must be lowercase, no spaces)
         sed -i 's/^package.name = .*/package.name = com.userballs.auricmv1/' buildozer.spec
-        # Ensure all required dependencies
         sed -i 's/^requirements = .*/requirements = python3,kivy,kivymd,mutagen,yt_dlp,requests,pygame,pillow/' buildozer.spec
-        # Set orientation
         sed -i 's/^orientation = .*/orientation = portrait/' buildozer.spec
+        sed -i 's/^entrypoint = .*/entrypoint = newv2.py/' buildozer.spec
+        sed -i 's/^source.dir = .*/source.dir = ./' buildozer.spec
 
-    # Step 5: Build the APK
+    # Step 6: Build the APK
     - name: Build APK
       run: |
         buildozer android debug
 
-    # Step 6: Upload APK artifact
+    # Step 7: Upload APK artifact
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
